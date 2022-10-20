@@ -1,7 +1,7 @@
 import type {Config, Store} from 'cache-manager';
-import {glob} from 'glob';
-import {v4 as uuidV4} from 'uuid';
+import fg from 'fast-glob';
 
+import {randomUUID} from 'crypto';
 import {existsSync, mkdirSync, statSync} from 'fs';
 import {readdir, readFile, unlink, writeFile} from 'fs/promises';
 import {join, resolve} from 'path';
@@ -110,7 +110,7 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
       }
       ttl = (ttl || ttl === 0) ? ttl : options.ttl;
 
-      const fileName = `cache_${uuidV4()}.dat`;
+      const fileName = `cache_${randomUUID()}.dat`;
       const filePath = resolve(join(options.path, fileName));
 
       const metaData: FsBinaryMetaFromFile = {
@@ -303,7 +303,7 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
                 })
                 .catch(() => {
                   unlink(filePath)
-                    .then(() => promisify(glob)(filePath.replace(/\.dat$/, '*.bin')))
+                    .then(() => fg(filePath.replace(/\.dat$/, '*.bin'), {onlyFiles: true}))
                     .then(files => Promise.all(files.map(f => unlink(f).catch())))
                     .catch();
                 });
