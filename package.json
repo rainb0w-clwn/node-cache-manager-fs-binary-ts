@@ -1,5 +1,5 @@
 {
-  "name": "@rainb0w-clwn/cache-manager-fs-binary-ts",
+  "name": "cache-manager-fs-binary-ts",
   "author": "rainb0w-clwn",
   "description": "File system store for node-cache-manager with binary data as files",
   "version": "1.0.5",
