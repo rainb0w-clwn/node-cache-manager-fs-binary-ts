@@ -24,7 +24,7 @@ files.
 ## Installation
 
 ```sh
-    npm install @rainb0w-clwn/cache-manager-fs-binary-ts --save
+    npm install cache-manager-fs-binary-ts --save
 ```
 
 ### Single store
