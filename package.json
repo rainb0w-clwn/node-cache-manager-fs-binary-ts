@@ -22,7 +22,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https:/github.com/rainb0w-clwn/node-cache-manager-fs-binary-ts.git"
+    "url": "git+https://gitlab.com/github.com/rainb0w-clwn/node-cache-manager-fs-binary-ts.git"
   },
   "keywords": [
     "cache",
@@ -81,5 +81,12 @@
     ],
     "coverageDirectory": "coverage",
     "testEnvironment": "node"
+  },
+  "bugs": {
+    "url": "https://gitlab.com/github.com/rainb0w-clwn/node-cache-manager-fs-binary-ts/issues"
+  },
+  "homepage": "https://gitlab.com/github.com/rainb0w-clwn/node-cache-manager-fs-binary-ts#readme",
+  "directories": {
+    "test": "test"
   }
 }

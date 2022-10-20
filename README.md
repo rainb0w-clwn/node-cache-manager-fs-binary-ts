@@ -1,30 +1,12 @@
-# node-cache-manager-fs-binary-ts
+# node-cache-manager-fs-binary-ts [![npm version](https://badge.fury.io/js/%40rainb0w-clwn%2Fnode-cache-manager-fs-binary-ts.svg)](https://badge.fury.io/js/%40rainb0w-clwn%2Fnode-cache-manager-fs-binary-ts.svg) [![Build Status](https://github.com/rainb0w-clwn/node-cache-manager-fs-binary-ts/actions/workflows/main.yml/badge.svg?branch=master)](https://github.com/rainb0w-clwn/node-cache-manager-fs-binary-ts/actions) [![codecov](https://codecov.io/gh/rainb0w-clwn/node-cache-manager-fs-binary-ts/branch/master/graph/badge.svg)](https://codecov.io/gh/rainb0w-clwn/node-cache-manager-fs-binary-ts)
 
-[![npm version](https://badge.fury.io/js/%40rainb0w-clwn%2Fnode-cache-manager-fs-binary-ts.svg)](https://badge.fury.io/js/%40rainb0w-clwn%2Fnode-cache-manager-fs-binary-ts.svg)
-[![Build Status](https://github.com/rainb0w-clwn/node-cache-manager-fs-binary-ts/actions/workflows/main.yml/badge.svg?branch=master)](https://github.com/rainb0w-clwn/node-cache-manager-fs-binary-ts/actions)
-[![codecov](https://codecov.io/gh/rainb0w-clwn/node-cache-manager-fs-binary-ts/branch/master/graph/badge.svg)](https://codecov.io/gh/rainb0w-clwn/node-cache-manager-fs-binary-ts)
-
-
-Node Cache Manager store for Filesystem with binary data
-========================================================
+# Node Cache Manager store for Filesystem with binary data
 
 The typed version of filesystem store for the [node-cache-manager](https://github.com/BryanDonovan/node-cache-manager) module, storing binary data as separate files and returning their full paths
 
 After getting the valid file path you can decide on your own how to handle it (sending it as stream to a consumer, e.g. `res.send()`, or handle as a buffer).
 
 The library caches on disk arbitrary data, but values of an object under the special key `binary` is stored as separate files.
-
-Node.js versions
-----------------
-
-Works with versions >= 14.18.1
-
-Installation
-------------
-
-```sh
-    npm install @rainb0w-clwn/cache-manager-fs-binary-ts --save
-```
 
 ## Features
 
@@ -36,7 +18,15 @@ Installation
 * Can store buffers inside the single metadata-cache file (not keys of the `binary` key)
 * Zip metadata-cache files (useful in case storing buffer inside it)
 
-## Single store
+## Installation
+
+------------
+
+```sh
+    npm install @rainb0w-clwn/cache-manager-fs-binary-ts --save
+```
+
+### Single store
 
 ```typescript
 // node cachemanager

@@ -3,7 +3,7 @@ on:
   - pull_request
 
 jobs:
-  test:
+  main:
     runs-on: ubuntu-latest
 
     steps:
