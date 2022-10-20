@@ -37,7 +37,7 @@
     "uuid": "^9.0.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.19.3",
+    "@babel/core": "7.19.6",
     "@babel/plugin-proposal-optional-chaining": "^7.18.9",
     "@babel/preset-env": "^7.19.4",
     "@babel/preset-typescript": "^7.18.6",
