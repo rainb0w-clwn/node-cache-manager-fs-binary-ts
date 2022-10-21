@@ -13,13 +13,18 @@ type Optional<T, K extends keyof T> = Pick<Partial<T>, K> & Omit<T, K>;
 
 type KeyExpiredTuple = [string, number];
 
-export type FsBinaryValueTypeKey = Buffer | string
+type BufferString = Buffer | string
 
-export type FsBinaryValueType<T extends FsBinaryValueTypeKey = FsBinaryValueTypeKey> = Record<string, T>
-
-export type FsBinaryValue<T extends FsBinaryValueTypeKey = FsBinaryValueTypeKey, M extends Record<string, any> = Record<string, any>> = {
-  binary: T | FsBinaryValueType<T>;
-} & M;
+export type FsBinaryValuePlain<T extends BufferString = BufferString> = {
+  binary: T;
+}
+export type FsBinaryValueObject<T extends BufferString = BufferString> = {
+  binary: Record<string, T>
+}
+export type FsBinaryValue<T extends BufferString = BufferString,
+  V extends FsBinaryValuePlain<T> | FsBinaryValueObject<T> = FsBinaryValuePlain<T> | FsBinaryValueObject<T>,
+  M extends { [K: string]: any } = { [K: string]: any } > =
+  V & M;
 
 export type FsBinaryMetaData = {
   key: string,
@@ -50,13 +55,13 @@ export type FsBinaryConfig = {
 
 export interface FsBinaryStore extends Store {
   get: <T = FsBinaryValue<string>>(key: string) => Promise<T | undefined>,
-  set: <T = FsBinaryValue<Buffer | string>>(key: string, data: T, ttl?: number) => Promise<void>
+  set: <T = FsBinaryValue>(key: string, data: T, ttl?: number) => Promise<void>
   collection: Record<string, FsBinaryMetaData>,
   currentsize: number,
   options: WithRequired<FsBinaryConfig, 'ttl' | 'path' | 'isCacheable'>,
   isCacheableValue: (value: unknown) => boolean;
   cleancache: () => Promise<void>;
-  zipIfNeeded: (data: Buffer | string) => Promise<Buffer | string>,
+  zipIfNeeded: (data: Buffer) => Promise<Buffer>,
   unzipIfNeeded: (data: Buffer) => Promise<Buffer>,
   cleanExpired: () => Promise<void>,
   freeupspace: () => Promise<void>
@@ -109,7 +114,7 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
     async mdel(...args) {
       await Promise.all(args.map(x => this.del(x)));
     },
-    async set(key: string, data: FsBinaryValue<Buffer | string>, ttl?: number) {
+    async set(key: string, data: FsBinaryValue, ttl?: number) {
       if (!options.isCacheable(data)) {
         throw new Error(`no cacheable value ${JSON.stringify(data)}`);
       }
@@ -127,7 +132,7 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
       };
 
       let binarySize = 0;
-      let binary: Buffer | FsBinaryValueType<Buffer | string> | undefined;
+      let binary: Buffer | Record<string, BufferString> | undefined;
 
       if (typeof data.binary == 'string' || Buffer.isBuffer(data.binary)) {
         binary = Buffer.from(data.binary);
@@ -163,7 +168,7 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
         .then(() => Promise.all(
           binary
             ? !Buffer.isBuffer(binary)
-              ? Object.entries(binary).map(([k, v]) => writeFile((metaData.value.binary as FsBinaryValueType<string>)[k], v))
+              ? Object.entries(binary).map(([k, v]) => writeFile((metaData.value.binary as Record<string, string>)[k], v))
               : [writeFile(metaData.value.binary as string, binary)]
             : [],
         ),
