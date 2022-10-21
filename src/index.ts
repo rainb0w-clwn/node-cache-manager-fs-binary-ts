@@ -13,17 +13,14 @@ type Optional<T, K extends keyof T> = Pick<Partial<T>, K> & Omit<T, K>;
 
 type KeyExpiredTuple = [string, number];
 
-export type FsBinaryValueBinaryKeyType = Buffer | string
-export type FsBinaryValueBinaryType<T extends FsBinaryValueBinaryKeyType = FsBinaryValueBinaryKeyType> = Record<string, T>
-export type FsBinaryValueBinary<T extends FsBinaryValueBinaryKeyType = FsBinaryValueBinaryKeyType> = {
-  binary: T | FsBinaryValueBinaryType<T>;
+export type FsBinaryValueTypeKey = Buffer | string
+
+export type FsBinaryValueType<T extends FsBinaryValueTypeKey = FsBinaryValueTypeKey> = Record<string, T>
+
+export type FsBinaryValue<T extends FsBinaryValueTypeKey = FsBinaryValueTypeKey> = {
+  binary: T | FsBinaryValueType<T>;
   [K: string]: any;
 }
-export type FsBinaryValue<T extends FsBinaryValueBinaryKeyType = FsBinaryValueBinaryKeyType> =
-  string
-  | Buffer
-  | FsBinaryValueBinary<T>;
-
 export type FsBinaryMetaData = {
   key: string,
   size: number;
@@ -39,8 +36,8 @@ const slugify = (str: string) =>
     .replace(/[\s_-]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
-export type FsBinaryMetaFromFile<T extends Buffer | string = Buffer> = FsBinaryMetaData & {
-  value: FsBinaryValueBinary<T>;
+export type FsBinaryMetaDataWithValue = FsBinaryMetaData & {
+  value: FsBinaryValue<string>;
 }
 
 export type FsBinaryConfig = {
@@ -52,7 +49,7 @@ export type FsBinaryConfig = {
 } & Config
 
 export interface FsBinaryStore extends Store {
-  get: <T = FsBinaryMetaFromFile<string>>(key: string) => Promise<T | undefined>,
+  get: <T = FsBinaryValue<string>>(key: string) => Promise<T | undefined>,
   set: <T = FsBinaryValue<Buffer | string>>(key: string, data: T, ttl?: number) => Promise<void>
   collection: Record<string, FsBinaryMetaData>,
   currentsize: number,
@@ -72,7 +69,7 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
     ...args,
     ttl: args?.ttl ?? 60,
     path: args?.path ?? 'cache',
-    isCacheable: args?.isCacheable || ((value: any) => value !== undefined && value !== null && (Buffer.isBuffer(value) || typeof value == 'string' || (typeof value == 'object' && value.binary && (typeof value.binary == 'string' || Object.keys(value.binary).length > 0)))),
+    isCacheable: args?.isCacheable || ((value: any) => value !== undefined && value !== null && (typeof value == 'object' && value.binary && (typeof value.binary == 'string' || Object.keys(value.binary).length > 0))),
   };
 
   // check storage directory for existence (or create it)
@@ -83,7 +80,7 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
     collection: {},
     currentsize: 0,
     options,
-    async get(key: string): Promise<FsBinaryMetaFromFile | undefined> {
+    async get(key: string): Promise<FsBinaryValue<string> | undefined> {
       // get the metadata from the collection
       const data = this.collection[key];
       if (!data) {
@@ -96,7 +93,7 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
       }
       return readFile(data.filename)
         .then(this.unzipIfNeeded)
-        .then(buffer => JSON.parse(buffer.toString()) as FsBinaryMetaFromFile);
+        .then(buffer => JSON.parse(buffer.toString()) as FsBinaryValue<string>);
     },
     async mget(...args) {
       return args.map(x => this.get(x));
@@ -121,7 +118,7 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
       const fileName = `cache_${randomUUID()}.dat`;
       const filePath = resolve(join(options.path, fileName));
 
-      const metaData: FsBinaryMetaFromFile<string> = {
+      const metaData: FsBinaryMetaDataWithValue = {
         key: key,
         value: data as any,
         expires: Date.now() + (ttl * 1000),
@@ -130,31 +127,24 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
       };
 
       let binarySize = 0;
-      let binary: Buffer | FsBinaryValueBinaryType<Buffer | string> | undefined;
-      if (typeof data == 'string' || Buffer.isBuffer(data)) {
-        binary = Buffer.isBuffer(data) ? data : Buffer.from(data);
+      let binary: Buffer | FsBinaryValueType<Buffer | string> | undefined;
+
+      if (typeof data.binary == 'string' || Buffer.isBuffer(data.binary)) {
+        binary = Buffer.from(data.binary);
         binarySize += binary.length;
         metaData.value = {binary: filePath.replace(/\.dat$/, '.bin')};
+        data.binary = metaData.value.binary;
       } else {
-        if (data.binary) {
-          if (typeof data.binary == 'string') {
-            binary = Buffer.from(data.binary);
-            metaData.value = {binary: filePath.replace(/\.dat$/, '.bin')};
-          } else if (Buffer.isBuffer(data.binary)) {
-            binary = Buffer.from(data.binary);
-            metaData.value = {binary: filePath.replace(/\.dat$/, '.bin')};
-          } else {
-            binary = data.binary;
-            delete (data as Optional<FsBinaryValueBinary<Buffer>, 'binary'>).binary;
-            data.binary = {};
-            for (const binkey in binary) {
-              // put storage filenames into stored value.binary object
-              (metaData.value.binary as any)[binkey] = metaData.filename.replace(/\.dat$/, '_' + slugify(binkey) + '.bin');
-              // calculate the size of the binary data
-              binarySize += binary[binkey].length;
-            }
-          }
-
+        binary = data.binary;
+        delete (data as Optional<FsBinaryValue<Buffer>, 'binary'>).binary;
+        data.binary = {};
+        for (const binkey in binary) {
+          // put storage filenames into stored value.binary object
+          const path = metaData.filename.replace(/\.dat$/, '_' + slugify(binkey) + '.bin');
+          (metaData.value.binary as any)[binkey] = path;
+          (data.binary as any)[binkey] = path;
+          // calculate the size of the binary data
+          binarySize += binary[binkey].length;
         }
       }
 
@@ -173,7 +163,7 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
         .then(() => Promise.all(
           binary
             ? !Buffer.isBuffer(binary)
-              ? Object.entries(binary).map(([k, v]) => writeFile((metaData.value.binary as FsBinaryValueBinaryType<string>)[k], v))
+              ? Object.entries(binary).map(([k, v]) => writeFile((metaData.value.binary as FsBinaryValueType<string>)[k], v))
               : [writeFile(metaData.value.binary as string, binary)]
             : [],
         ),
@@ -182,7 +172,7 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
         .then(processedStream => writeFile(metaData.filename, processedStream))
         .then(() => {
           // remove data value from memory
-          const metaDataWithOptionalValue = metaData as Optional<FsBinaryMetaFromFile<string>, 'value'>;
+          const metaDataWithOptionalValue = metaData as Optional<FsBinaryMetaDataWithValue, 'value'>;
           metaDataWithOptionalValue.value = undefined;
           delete metaDataWithOptionalValue.value;
           this.currentsize += metaData.size;
@@ -205,7 +195,7 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
       return readFile(metaData.filename)
         .then(this.unzipIfNeeded)
         .then(async (metaExtraContent) => {
-          let metaData: FsBinaryMetaFromFile<string>;
+          let metaData: FsBinaryMetaDataWithValue;
           try {
             metaData = JSON.parse(metaExtraContent.toString());
           } catch (e) {

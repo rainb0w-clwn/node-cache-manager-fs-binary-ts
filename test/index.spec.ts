@@ -63,7 +63,7 @@ describe('test for the hde-disk-store module', function () {
       const s = store({path: cacheDirectory, preventfill: true});
       const delSpy = spyOn(s, 'del');
       expect(
-        s.set('test', 'test', -1)
+        s.set('test', {binary: 'test'}, -1)
           .then(() => {
             delSpy.mockClear();
             expect(delSpy).not.toBeCalled();
@@ -82,7 +82,7 @@ describe('test for the hde-disk-store module', function () {
       it('filename empty', (done) => {
         const s = store({path: cacheDirectory, preventfill: true});
         expect(
-          s.set('test', 'test')
+          s.set('test', {binary: 'test'})
             .then(() => {
               const tmpfilename = s.collection['test'].filename;
               s.collection['test'].filename = null as any;
@@ -96,7 +96,7 @@ describe('test for the hde-disk-store module', function () {
       it('file does not exist', (done) => {
         const s = store({path: cacheDirectory, preventfill: true});
         expect(
-          s.set('test', 'test')
+          s.set('test', {binary: 'test'})
             .then(() => {
               const tmpfilename = s.collection['test'].filename;
               s.collection['test'].filename = 'bla';
@@ -113,35 +113,19 @@ describe('test for the hde-disk-store module', function () {
   it('test expired of key (and also ttl option on setting)', (done) => {
     const s = store({path: cacheDirectory, preventfill: true});
     expect(
-      s.set('asdf', 'blabla', -1000)
+      s.set('asdf', {binary: 'test'}, -1000)
         .then(() => {
-          expect(s.get('test').finally(() => done())).resolves.toBeUndefined();
+          expect(s.get('asdf').finally(() => done())).resolves.toBeUndefined();
         }),
     ).resolves.not.toThrowError();
   });
 
   describe('set', () => {
-    it('set string', (done) => {
+    it('set object with string', (done) => {
       const s = store({path: cacheDirectory, preventfill: true});
-      const data = 'a lot of data in a file';
+      const data = 'string';
       expect(
-        s.set('asdf', data)
-          .then(() => {
-            expect(s.get('asdf').then((metaData) => {
-              expect(metaData).not.toBeUndefined();
-              const data2 = readFileSync(metaData?.value.binary as string);
-              expect(data2.toString()).toEqual(data);
-              done();
-            })).resolves.not.toThrowError();
-          }),
-      ).resolves.not.toThrowError();
-    });
-
-    it('set buffer', (done) => {
-      const s = store({path: cacheDirectory, preventfill: true});
-      const data = Buffer.from('a lot of data in a file');
-      expect(
-        s.set('asdf', data)
+        s.set('asdf', {binary: data})
           .then(() => {
             expect(s.get('asdf').then((metaData) => {
               expect(metaData).not.toBeUndefined();
@@ -153,9 +137,9 @@ describe('test for the hde-disk-store module', function () {
       ).resolves.not.toThrowError();
     });
 
-    it('set object with string', (done) => {
+    it('set object with buffer', (done) => {
       const s = store({path: cacheDirectory, preventfill: true});
-      const data = 'string';
+      const data = Buffer.from('string');
       expect(
         s.set('asdf', {binary: data})
           .then(() => {
@@ -201,12 +185,63 @@ describe('test for the hde-disk-store module', function () {
       ).resolves.not.toThrowError();
     });
 
+
+    describe('set changes input binaries to file paths', () => {
+      it('set object with string', (done) => {
+        const s = store({path: cacheDirectory, preventfill: true});
+        const data = {binary: 'string'};
+        expect(
+          s.set('asdf', data)
+            .then(() => {
+              expect(/\.bin$/.test(data.binary as any)).toBeTruthy();
+              done();
+            }),
+        ).resolves.not.toThrowError();
+      });
+
+      it('set object with buffer', (done) => {
+        const s = store({path: cacheDirectory, preventfill: true});
+        const data = {binary: Buffer.from('string')};
+        expect(
+          s.set('asdf', data)
+            .then(() => {
+              expect(/\.bin$/.test(data.binary as any)).toBeTruthy();
+              done();
+            }),
+        ).resolves.not.toThrowError();
+      });
+
+      it('set object with string collection', (done) => {
+        const s = store({path: cacheDirectory, preventfill: true});
+        const data = {binary: {data: 'string'}};
+        expect(
+          s.set('asdf', data)
+            .then(() => {
+              expect(/\_data.bin$/.test(data.binary.data as any)).toBeTruthy();
+              done();
+            }),
+        ).resolves.not.toThrowError();
+      });
+
+      it('set object with buffer collection', (done) => {
+        const s = store({path: cacheDirectory, preventfill: true});
+        const data = {binary: {data: Buffer.from('string')}};
+        expect(
+          s.set('asdf', data)
+            .then(() => {
+              expect(/\_data.bin$/.test(data.binary.data as any)).toBeTruthy();
+              done();
+            }),
+        ).resolves.not.toThrowError();
+      });
+    });
+
     it('check value cacheable', async () => {
       const s = store({path: cacheDirectory, preventfill: true});
       await expect(s.set('asdf', null as any)).rejects.toThrowError();
       await expect(s.set('asdf', undefined as any)).rejects.toThrowError();
-      await expect(s.set('asdf', 'string')).resolves.not.toThrowError();
-      await expect(s.set('asdf', Buffer.from('string'))).resolves.not.toThrowError();
+      await expect(s.set('asdf', 'string')).rejects.toThrowError();
+      await expect(s.set('asdf', Buffer.from('string'))).rejects.toThrowError();
       await expect(s.set('asdf', {binary: {}})).rejects.toThrowError();
       await expect(s.set('asdf', {binary: 'string'})).resolves.not.toThrowError();
       await expect(s.set('asdf', {binary: Buffer.from('string')})).resolves.not.toThrowError();
@@ -220,7 +255,7 @@ describe('test for the hde-disk-store module', function () {
       const s = store({path: cacheDirectory, preventfill: true});
       const data = 'just a string with data';
       expect(
-        s.set('key123', data)
+        s.set('key123', {binary: data})
           .then(() => {
             expect(s.keys().then((keys) => {
               expect(keys).toHaveLength(1);
@@ -242,7 +277,7 @@ describe('test for the hde-disk-store module', function () {
     it('successfull deletion',  (done) => {
       const s = store({path: cacheDirectory, preventfill: true});
       expect(
-        s.set('nix', 'empty')
+        s.set('nix', {binary: 'empty'})
           .then(() => {
             expect(s.collection['nix']).not.toBeUndefined();
             expect(s.reset().then(() => {
@@ -261,7 +296,7 @@ describe('test for the hde-disk-store module', function () {
       it('file not exists',  (done) => {
         const s = store({path: cacheDirectory, preventfill: true});
         expect(
-          s.set('test', 'empty')
+          s.set('test', {binary: 'empty'})
             .then(() => {
               const fn = s.collection['test'].filename;
               s.collection['test'].filename = s.collection['test'].filename + '.not_here';
@@ -277,7 +312,7 @@ describe('test for the hde-disk-store module', function () {
       it('filename not set',  (done) =>{
         const s = store({path: cacheDirectory, preventfill: true});
         expect(
-          s.set('test', 'empty')
+          s.set('test', {binary: 'empty'})
             .then(() => {
               const fn = s.collection['test'].filename;
               s.collection['test'].filename = null as any;
@@ -294,8 +329,8 @@ describe('test for the hde-disk-store module', function () {
     it('reset all',  (done) => {
       const s = store({path: cacheDirectory, preventfill: true});
       expect(
-        s.set('test', 'test')
-          .then(() => s.set('test2', 'test2'))
+        s.set('test', {binary: 'test'})
+          .then(() => s.set('test2', {binary: 'test2'}))
           .then(() => {
             expect(s.collection['test']).not.toBeUndefined();
             expect(s.collection['test2']).not.toBeUndefined();
@@ -317,9 +352,9 @@ describe('test for the hde-disk-store module', function () {
     it('works', async () => {
       const s = store({path: cacheDirectory, preventfill: true});
       await expect(s.ttl('key')).resolves.toEqual(s.options.ttl);
-      await expect(s.set('test', 'test')).resolves.not.toThrowError();
+      await expect(s.set('test', {binary: 'test'})).resolves.not.toThrowError();
       await expect(s.ttl('test')).resolves.toBeGreaterThan(0);
-      await expect(s.set('test', 'test', -1)).resolves.not.toThrowError();
+      await expect(s.set('test', {binary: 'test'}, -1)).resolves.not.toThrowError();
       await expect(s.ttl('test')).resolves.toEqual(0);
     });
   });
@@ -329,8 +364,8 @@ describe('test for the hde-disk-store module', function () {
       const s = store({path: cacheDirectory, preventfill: true});
       expect(s.isCacheableValue(null)).toBeFalsy();
       expect(s.isCacheableValue(undefined)).toBeFalsy();
-      expect(s.isCacheableValue('string')).toBeTruthy();
-      expect(s.isCacheableValue(Buffer.from('string'))).toBeTruthy();
+      expect(s.isCacheableValue('string')).toBeFalsy();
+      expect(s.isCacheableValue(Buffer.from('string'))).toBeFalsy();
       expect(s.isCacheableValue({binary: 'string'})).toBeTruthy();
       expect(s.isCacheableValue({binary: Buffer.from('string')})).toBeTruthy();
       expect(s.isCacheableValue({binary: {}})).toBeFalsy();
@@ -347,7 +382,7 @@ describe('test for the hde-disk-store module', function () {
       const zipSpy = spyOn(s, 'zipIfNeeded');
       const unzipSpy = spyOn(s, 'unzipIfNeeded');
       expect(
-        s.set(dataKey, datastring)
+        s.set(dataKey, {binary: datastring})
           .then(() => {
             expect(zipSpy).toBeCalled();
             expect(s.get(dataKey).then((metaData) => {
@@ -367,8 +402,8 @@ describe('test for the hde-disk-store module', function () {
       // create store
       const s = store({path: cacheDirectory, preventfill: true});
       // save element
-      expect(s.set('RestoreDontSurvive', 'data', -1)
-        .then(() => s.set('RestoreTest', 'test'))
+      expect(s.set('RestoreDontSurvive', {binary: 'data'}, -1)
+        .then(() => s.set('RestoreTest', {binary: 'test'}))
         .then(() => {
           const t = store({
             path: cacheDirectory, fillcallback: () => {
@@ -395,8 +430,8 @@ describe('test for the hde-disk-store module', function () {
     it('cache initialization on start with zip option', (done) => {
       const s = store({path: cacheDirectory, zip: true, preventfill: true});
       // save element
-      expect(s.set('RestoreDontSurvive', 'data', -1)
-        .then(() => s.set('RestoreTest', 'test'))
+      expect(s.set('RestoreDontSurvive', {binary: 'data'}, -1)
+        .then(() => s.set('RestoreTest', {binary: 'test'}))
         .then(() => {
           const t = store({
             path: cacheDirectory, zip: true, fillcallback: () => {
@@ -423,8 +458,8 @@ describe('test for the hde-disk-store module', function () {
     it('cache initialization on start without zip option', (done) => {
       const s = store({path: cacheDirectory, zip: true, preventfill: true});
       // save element
-      expect(s.set('RestoreDontSurvive', 'data', -1)
-        .then(() => s.set('RestoreTest', 'test'))
+      expect(s.set('RestoreDontSurvive', {binary: 'data'}, -1)
+        .then(() => s.set('RestoreTest', {binary: 'test'}))
         .then(() => {
           const t = store({
             path: cacheDirectory, fillcallback: () => {
@@ -450,29 +485,29 @@ describe('test for the hde-disk-store module', function () {
     it('max size option', async () => {
       const s = store({path: cacheDirectory, preventfill: true, maxsize: 1});
       await expect(
-        s.set('one', 'dataone'),
+        s.set('one', {binary: 'dataone'}),
       ).rejects.toThrowError('Item size too big.');
       expect(Object.keys(s.collection).length).toEqual(0);
 
       await expect(
-        s.set('x', 'x', -1),
+        s.set('x', {binary: 'x'}, -1),
       ).rejects.toThrowError('Item size too big.');
       expect(Object.keys(s.collection).length).toEqual(0);
 
       s.options.maxsize = 400;
 
       await expect(
-        s.set('a', 'a', 10000),
+        s.set('a', {binary: 'a'}, 10000),
       ).resolves.not.toThrowError();
       expect(Object.keys(s.collection).length).toEqual(1);
 
       await expect(
-        s.set('b', 'b', 100),
+        s.set('b', {binary: 'b'}, 100),
       ).resolves.not.toThrowError();
       expect(Object.keys(s.collection).length).toEqual(2);
 
       await expect(
-        s.set('c', 'c', 100),
+        s.set('c', {binary: 'c'}, 100),
       ).resolves.not.toThrowError();
       expect(Object.keys(s.collection).length).toEqual(2);
 

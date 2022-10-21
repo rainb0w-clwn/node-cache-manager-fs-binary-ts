@@ -48,12 +48,14 @@ const cacheKey = 'testKey';
 const ttl = 60 * 60 * 24 * 7; // in seconds
 
 // wrapper function, see more examples at node-cache-manager
-const result: FsBinaryValue = await diskCache.wrap(cacheKey,
+// note that basic node-cache-manager wrap method returns input data as is
+// so our set method changes input binaries to be resolved as file paths to match get ones
+const result: FsBinaryValue<string> = await diskCache.wrap(cacheKey,
   // called if the cache misses in order to generate the value to cache
   () => {
     let myFileBuffer: Buffer; // buffer that will be saved to separate file
-    let moreData: string; // string that will be saved to a separate file
-    let metaData: any; // some data too keep inside
+    let moreData = 'string'; // string that will be saved to a separate file
+    let metaData = 'string'; // some data too keep inside, any JSON-able data
     let someFileBuffer: Buffer; // small binary data to store inside as buffer
 
     // now returning value to cache and process further
@@ -65,7 +67,7 @@ const result: FsBinaryValue = await diskCache.wrap(cacheKey,
         myFile: myFileBuffer,
         someMoreData: moreData,
       },
-// Other data are saved into the metadata-cache file
+// Other (optional) data are saved into the metadata-cache file
       someArbitraryValues: metaData,
       someFilesToKeepInMetaDataCacheFile: {
 // While buffer data could be saved to the main file, it is strongly
@@ -79,6 +81,20 @@ const result: FsBinaryValue = await diskCache.wrap(cacheKey,
   ttl
 )
 
+console.log(result)
+```
+
+``` typescript
+{
+  binary: {
+    myFile: 'diskcache/{UUID_V4}_myfile.bin', 
+    someMoreData: 'diskcache/{UUID_V4}_somemoredata.bin',
+  },
+  someArbitraryValues: 'string', 
+  someFilesToKeepInMetaDataCacheFile: {
+    someFile: Buffer
+  }
+}
 ```
 
 ### Options
@@ -102,24 +118,20 @@ options.zip = false;
 ### Examples
 
 ```typescript
-// Input file data can be a Buffer
-await diskCache.set('key1', Buffer.from('string'));
-// or a plain string
-await diskCache.set('key2', 'string');
 // or an object with binary as Buffer
-await diskCache.set('key3',
+await diskCache.set('key1',
   {
     binary: Buffer.from('string'),
   }
 );
 // or an object with binary as string
-await diskCache.set('key3',
+await diskCache.set('key2',
   {
     binary: 'string'
   }
 );
 // or an object with binary as collection of binary data
-await diskCache.set('key5',
+await diskCache.set('key3',
   {
     binary: {
       file1: Buffer.from('string'),
