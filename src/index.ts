@@ -17,10 +17,10 @@ export type FsBinaryValueTypeKey = Buffer | string
 
 export type FsBinaryValueType<T extends FsBinaryValueTypeKey = FsBinaryValueTypeKey> = Record<string, T>
 
-export type FsBinaryValue<T extends FsBinaryValueTypeKey = FsBinaryValueTypeKey> = {
+export type FsBinaryValue<T extends FsBinaryValueTypeKey = FsBinaryValueTypeKey, M extends Record<string, any> = Record<string, any>> = {
   binary: T | FsBinaryValueType<T>;
-  [K: string]: any;
-}
+} & M;
+
 export type FsBinaryMetaData = {
   key: string,
   size: number;
