@@ -16,7 +16,7 @@ type KeyExpiredTuple = [string, number];
 export type FsBinaryValueBinaryKeyType = Buffer | string
 export type FsBinaryValueBinaryType<T extends FsBinaryValueBinaryKeyType = FsBinaryValueBinaryKeyType> = Record<string, T>
 export type FsBinaryValueBinary<T extends FsBinaryValueBinaryKeyType = FsBinaryValueBinaryKeyType> = {
-  binary: FsBinaryValueBinaryType<T>;
+  binary: T | FsBinaryValueBinaryType<T>;
   [K: string]: any;
 }
 export type FsBinaryValue<T extends FsBinaryValueBinaryKeyType = FsBinaryValueBinaryKeyType> =
@@ -31,8 +31,16 @@ export type FsBinaryMetaData = {
   expires: number,
 }
 
-export type FsBinaryMetaFromFile = FsBinaryMetaData & {
-  value: string | FsBinaryValueBinaryType<string>
+const slugify = (str: string) =>
+  str
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+export type FsBinaryMetaFromFile<T extends Buffer | string = Buffer> = FsBinaryMetaData & {
+  value: FsBinaryValueBinary<T>;
 }
 
 export type FsBinaryConfig = {
@@ -43,9 +51,11 @@ export type FsBinaryConfig = {
   fillcallback?: (err?: any) => void, //  callback fired after the initial cache filling is completed
 } & Config
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
 export interface FsBinaryStore extends Store {
-  get: <T = FsBinaryMetaFromFile>(key: string) => Promise<T | undefined>,
-  set: <T = FsBinaryValue<Buffer>>(key: string, data: T, ttl?: number) => Promise<void>
+  get: (key: string) => Promise<FsBinaryMetaFromFile<string> | undefined>,
+  set: (key: string, data: FsBinaryValue<Buffer | string>, ttl?: number) => Promise<void>
   collection: Record<string, FsBinaryMetaData>,
   currentsize: number,
   options: WithRequired<FsBinaryConfig, 'ttl' | 'path' | 'isCacheable'>,
@@ -64,7 +74,7 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
     ...args,
     ttl: args?.ttl ?? 60,
     path: args?.path ?? 'cache',
-    isCacheable: args?.isCacheable || ((value: any) => value !== undefined && value !== null && (Buffer.isBuffer(value) || typeof value == 'string' || (typeof value == 'object' && value.binary))),
+    isCacheable: args?.isCacheable || ((value: any) => value !== undefined && value !== null && (Buffer.isBuffer(value) || typeof value == 'string' || (typeof value == 'object' && value.binary && (typeof value.binary == 'string' || Object.keys(value.binary).length > 0)))),
   };
 
   // check storage directory for existence (or create it)
@@ -98,13 +108,13 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
         if (!options.isCacheable(value)) {
           throw new Error(`no cacheable value ${JSON.stringify(value)}`);
         }
-        return this.set(key, value, ttl);
+        return this.set(key, value as FsBinaryValue<Buffer>, ttl);
       }));
     },
     async mdel(...args) {
       await Promise.all(args.map(x => this.del(x)));
     },
-    async set(key: string, data: FsBinaryValue<Buffer>, ttl?: number) {
+    async set(key: string, data: FsBinaryValue<Buffer | string>, ttl?: number) {
       if (!options.isCacheable(data)) {
         throw new Error(`no cacheable value ${JSON.stringify(data)}`);
       }
@@ -113,36 +123,41 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
       const fileName = `cache_${randomUUID()}.dat`;
       const filePath = resolve(join(options.path, fileName));
 
-      const metaData: FsBinaryMetaFromFile = {
+      const metaData: FsBinaryMetaFromFile<string> = {
         key: key,
-        value: filePath.replace(/\.dat$/,  '.bin'),
+        value: data as any,
         expires: Date.now() + (ttl * 1000),
         filename: filePath,
         size: 0,
       };
 
       let binarySize = 0;
-      let binary: string | Buffer | FsBinaryValueBinaryType<Buffer> | undefined;
-      if (!(typeof data == 'string') && !(data instanceof Buffer)) {
+      let binary: Buffer | FsBinaryValueBinaryType<Buffer | string> | undefined;
+      if (typeof data == 'string' || Buffer.isBuffer(data)) {
+        binary = Buffer.isBuffer(data) ? data : Buffer.from(data);
+        binarySize += binary.length;
+        metaData.value = {binary: filePath.replace(/\.dat$/, '.bin')};
+      } else {
         if (data.binary) {
-          binary = data.binary;
-          delete (data as Optional<FsBinaryValueBinary<Buffer>, 'binary'>).binary;
-          data.binary = {};
-          if (!Buffer.isBuffer(binary)) {
+          if (typeof data.binary == 'string') {
+            binary = Buffer.from(data.binary);
+            metaData.value = {binary: filePath.replace(/\.dat$/, '.bin')};
+          } else if (Buffer.isBuffer(data.binary)) {
+            binary = Buffer.from(data.binary);
+            metaData.value = {binary: filePath.replace(/\.dat$/, '.bin')};
+          } else {
+            binary = data.binary;
+            delete (data as Optional<FsBinaryValueBinary<Buffer>, 'binary'>).binary;
+            data.binary = {};
             for (const binkey in binary) {
               // put storage filenames into stored value.binary object
-              if (typeof metaData.value == 'string') {
-                metaData.value = {};
-              }
-              metaData.value[binkey] = metaData.filename.replace(/\.dat$/, '_' + binkey + '.bin');
+              (metaData.value.binary as any)[binkey] = metaData.filename.replace(/\.dat$/, '_' + slugify(binkey) + '.bin');
               // calculate the size of the binary data
-              binarySize += binary[binkey].length || 0;
+              binarySize += binary[binkey].length;
             }
           }
+
         }
-      } else {
-        binary = data;
-        binarySize += binary.length;
       }
 
       const stream = JSON.stringify(metaData);
@@ -159,11 +174,9 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
         .then(() => this.freeupspace())
         .then(() => Promise.all(
           binary
-            ? typeof binary == 'object' && 'binary' in binary && !(typeof metaData.value === 'string')
-              ? Object.entries(binary).map(([k, v]) => writeFile((metaData.value as FsBinaryValueBinary<string>)[k], v))
-              : (typeof metaData.value === 'string') && (typeof binary == 'string' || Buffer.isBuffer(binary))
-                ? [writeFile(metaData.value, binary)]
-                : []
+            ? !Buffer.isBuffer(binary)
+              ? Object.entries(binary).map(([k, v]) => writeFile((metaData.value.binary as FsBinaryValueBinaryType<string>)[k], v))
+              : [writeFile(metaData.value.binary as string, binary)]
             : [],
         ),
         )
@@ -171,7 +184,7 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
         .then(processedStream => writeFile(metaData.filename, processedStream))
         .then(() => {
           // remove data value from memory
-          const metaDataWithOptionalValue = metaData as Optional<FsBinaryMetaFromFile, 'value'>;
+          const metaDataWithOptionalValue = metaData as Optional<FsBinaryMetaFromFile<string>, 'value'>;
           metaDataWithOptionalValue.value = undefined;
           delete metaDataWithOptionalValue.value;
           this.currentsize += metaData.size;
@@ -190,25 +203,24 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
       if (!metaData.filename) {
         return;
       }
-      // check for existance of the file
+      // check for existence of the file
       return readFile(metaData.filename)
         .then(this.unzipIfNeeded)
         .then(async (metaExtraContent) => {
-          if (!metaExtraContent) {
-            throw new Error('No meta');
-          }
-          let metaData: FsBinaryMetaFromFile;
+          let metaData: FsBinaryMetaFromFile<string>;
           try {
             metaData = JSON.parse(metaExtraContent.toString());
           } catch (e) {
             throw new Error('Parsing meta error');
           }
 
-          if (metaData?.value && !(typeof metaData.value === 'string')) {
+          if (!(typeof metaData.value.binary == 'string')) {
             // unlink binaries
-            for (key of Object.keys(metaData.value)) {
-              await unlink(metaData.value[key]);
+            for (key of Object.keys(metaData.value.binary)) {
+              await unlink(metaData.value.binary[key]);
             }
+          } else {
+            await unlink(metaData.value.binary);
           }
           return unlink(metaData.filename);
         })
@@ -286,7 +298,17 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
                 .then(this.unzipIfNeeded)
                 .then((data) => {
                   // get the json out of the data
-                  const diskData: FsBinaryMetaData = JSON.parse(data.toString());
+                  let diskData: FsBinaryMetaData;
+                  try {
+                    diskData = JSON.parse(data.toString());
+                  } catch {
+                    return unlink(filePath)
+                      .then(() => fg(filePath.replace(/\.dat$/, '*.bin'), {onlyFiles: true, absolute: true}))
+                      .then(files => Promise.all(files.map(f => unlink(f).catch())))
+                      .then(() => {
+                        return;
+                      });
+                  }
 
                   // update the size in the metadata - this value isn't correctly stored in the file
                   // diskData.size = data.length;
@@ -300,18 +322,12 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
                   if (diskData.expires < Date.now()) {
                     return store.del(diskData.key);
                   }
-                })
-                .catch(() => {
-                  unlink(filePath)
-                    .then(() => fg(filePath.replace(/\.dat$/, '*.bin'), {onlyFiles: true}))
-                    .then(files => Promise.all(files.map(f => unlink(f).catch())))
-                    .catch();
                 });
             }),
         ),
         );
     },
-    async freeupspacehelper (tuples: KeyExpiredTuple[]): Promise<void> {
+    async freeupspacehelper(tuples: KeyExpiredTuple[]): Promise<void> {
       // check, if we have any entry to process
       if (tuples.length === 0) {
         return;

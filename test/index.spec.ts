@@ -59,6 +59,25 @@ describe('test for the hde-disk-store module', function () {
       });
     });
 
+    it('get expired', (done) => {
+      const s = store({path: cacheDirectory, preventfill: true});
+      const delSpy = spyOn(s, 'del');
+      expect(
+        s.set('test', 'test', -1)
+          .then(() => {
+            delSpy.mockClear();
+            expect(delSpy).not.toBeCalled();
+            return s.get('test');
+          })
+          .then((metaData) => {
+            expect(metaData).toBeUndefined();
+            expect(delSpy).toBeCalled();
+            done();
+          }),
+      );
+    });
+
+
     describe('test missing file on disk', () => {
       it('filename empty', (done) => {
         const s = store({path: cacheDirectory, preventfill: true});
@@ -102,7 +121,7 @@ describe('test for the hde-disk-store module', function () {
   });
 
   describe('set', () => {
-    it('simple set test', (done) => {
+    it('set string', (done) => {
       const s = store({path: cacheDirectory, preventfill: true});
       const data = 'a lot of data in a file';
       expect(
@@ -110,12 +129,89 @@ describe('test for the hde-disk-store module', function () {
           .then(() => {
             expect(s.get('asdf').then((metaData) => {
               expect(metaData).not.toBeUndefined();
-              const data2 = readFileSync(metaData?.value as string);
+              const data2 = readFileSync(metaData?.value.binary as string);
               expect(data2.toString()).toEqual(data);
               done();
             })).resolves.not.toThrowError();
           }),
       ).resolves.not.toThrowError();
+    });
+
+    it('set buffer', (done) => {
+      const s = store({path: cacheDirectory, preventfill: true});
+      const data = Buffer.from('a lot of data in a file');
+      expect(
+        s.set('asdf', data)
+          .then(() => {
+            expect(s.get('asdf').then((metaData) => {
+              expect(metaData).not.toBeUndefined();
+              const data2 = readFileSync(metaData?.value.binary as string);
+              expect(data2.toString()).toEqual(data.toString());
+              done();
+            })).resolves.not.toThrowError();
+          }),
+      ).resolves.not.toThrowError();
+    });
+
+    it('set object with string', (done) => {
+      const s = store({path: cacheDirectory, preventfill: true});
+      const data = 'string';
+      expect(
+        s.set('asdf', {binary: data})
+          .then(() => {
+            expect(s.get('asdf').then((metaData) => {
+              expect(metaData).not.toBeUndefined();
+              const data2 = readFileSync(metaData?.value.binary as string);
+              expect(data2.toString()).toEqual(data.toString());
+              done();
+            })).resolves.not.toThrowError();
+          }),
+      ).resolves.not.toThrowError();
+    });
+
+    it('set object with string collection', (done) => {
+      const s = store({path: cacheDirectory, preventfill: true});
+      const data = 'string';
+      expect(
+        s.set('asdf', {binary: {data: data}})
+          .then(() => {
+            expect(s.get('asdf').then((metaData) => {
+              expect(metaData).not.toBeUndefined();
+              const data2 = readFileSync((metaData?.value.binary as Record<string, string>).data as string);
+              expect(data2.toString()).toEqual(data.toString());
+              done();
+            })).resolves.not.toThrowError();
+          }),
+      ).resolves.not.toThrowError();
+    });
+
+    it('set object with buffer collection', (done) => {
+      const s = store({path: cacheDirectory, preventfill: true});
+      const data = 'string';
+      expect(
+        s.set('asdf', {binary: {data: Buffer.from(data)}})
+          .then(() => {
+            expect(s.get('asdf').then((metaData) => {
+              expect(metaData).not.toBeUndefined();
+              const data2 = readFileSync((metaData?.value.binary as Record<string, string>).data as string);
+              expect(data2.toString()).toEqual(data.toString());
+              done();
+            })).resolves.not.toThrowError();
+          }),
+      ).resolves.not.toThrowError();
+    });
+
+    it('check value cacheable', async () => {
+      const s = store({path: cacheDirectory, preventfill: true});
+      await expect(s.set('asdf', null as any)).rejects.toThrowError();
+      await expect(s.set('asdf', undefined as any)).rejects.toThrowError();
+      await expect(s.set('asdf', 'string')).resolves.not.toThrowError();
+      await expect(s.set('asdf', Buffer.from('string'))).resolves.not.toThrowError();
+      await expect(s.set('asdf', {binary: {}})).rejects.toThrowError();
+      await expect(s.set('asdf', {binary: 'string'})).resolves.not.toThrowError();
+      await expect(s.set('asdf', {binary: Buffer.from('string')})).resolves.not.toThrowError();
+      await expect(s.set('asdf', {binary: {data: 'string'}})).resolves.not.toThrowError();
+      await expect(s.set('asdf', {binary: {data: Buffer.from('string')}})).resolves.not.toThrowError();
     });
   });
 
@@ -217,6 +313,17 @@ describe('test for the hde-disk-store module', function () {
     });
   });
 
+  describe('ttl', () => {
+    it('works', async () => {
+      const s = store({path: cacheDirectory, preventfill: true});
+      await expect(s.ttl('key')).resolves.toEqual(s.options.ttl);
+      await expect(s.set('test', 'test')).resolves.not.toThrowError();
+      await expect(s.ttl('test')).resolves.toBeGreaterThan(0);
+      await expect(s.set('test', 'test', -1)).resolves.not.toThrowError();
+      await expect(s.ttl('test')).resolves.toEqual(0);
+    });
+  });
+
   describe('isCacheableValue', () => {
     it('works', () => {
       const s = store({path: cacheDirectory, preventfill: true});
@@ -224,7 +331,10 @@ describe('test for the hde-disk-store module', function () {
       expect(s.isCacheableValue(undefined)).toBeFalsy();
       expect(s.isCacheableValue('string')).toBeTruthy();
       expect(s.isCacheableValue(Buffer.from('string'))).toBeTruthy();
-      expect(s.isCacheableValue({binary: {}})).toBeTruthy();
+      expect(s.isCacheableValue({binary: 'string'})).toBeTruthy();
+      expect(s.isCacheableValue({binary: Buffer.from('string')})).toBeTruthy();
+      expect(s.isCacheableValue({binary: {}})).toBeFalsy();
+      expect(s.isCacheableValue({binary: {data: Buffer.from('string')}})).toBeTruthy();
     });
   });
 
@@ -243,7 +353,7 @@ describe('test for the hde-disk-store module', function () {
             expect(s.get(dataKey).then((metaData) => {
               expect(unzipSpy).toBeCalled();
               expect(metaData).not.toBeUndefined();
-              const data2 = readFileSync(metaData?.value as string);
+              const data2 = readFileSync(metaData?.value.binary as string);
               expect(data2.toString()).toEqual(datastring);
               done();
             })).resolves.not.toThrowError();
@@ -265,7 +375,7 @@ describe('test for the hde-disk-store module', function () {
               t.get('RestoreTest')
                 .then((metaData) => {
                   expect(metaData).not.toBeUndefined();
-                  const data = readFileSync(metaData?.value as string);
+                  const data = readFileSync(metaData?.value.binary as string);
                   expect(data.toString()).toEqual('test');
                 })
                 .then(() => t.get('RestoreDontSurvive'))
@@ -293,8 +403,35 @@ describe('test for the hde-disk-store module', function () {
               t.get('RestoreTest')
                 .then((metaData) => {
                   expect(metaData).not.toBeUndefined();
-                  const data = readFileSync(metaData?.value as string);
+                  const data = readFileSync(metaData?.value.binary as string);
                   expect(data.toString()).toEqual('test');
+                })
+                .then(() => t.get('RestoreDontSurvive'))
+                .then((metaData) => {
+                  expect(metaData).toBeUndefined();
+                  expect(s.currentsize > 0).toBeTruthy();
+                })
+                .finally(() => {
+                  done();
+                });
+            },
+          });
+        }),
+      ).resolves.not.toThrowError();
+    });
+
+    it('cache initialization on start without zip option', (done) => {
+      const s = store({path: cacheDirectory, zip: true, preventfill: true});
+      // save element
+      expect(s.set('RestoreDontSurvive', 'data', -1)
+        .then(() => s.set('RestoreTest', 'test'))
+        .then(() => {
+          const t = store({
+            path: cacheDirectory, fillcallback: () => {
+              t.get('RestoreTest')
+                .then((metaData) => {
+                  expect(metaData).toBeUndefined();
+                  expect(s.currentsize > 0).toBeTruthy();
                 })
                 .then(() => t.get('RestoreDontSurvive'))
                 .then((metaData) => {
@@ -344,7 +481,7 @@ describe('test for the hde-disk-store module', function () {
         s.get('a')
           .then((metaData) => {
             expect(metaData).not.toBeUndefined();
-            const data = readFileSync(metaData?.value as string);
+            const data = readFileSync(metaData?.value.binary as string);
             expect(data.toString()).toEqual('a');
           })
           .then(() => s.get('b'))

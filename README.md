@@ -62,7 +62,6 @@ const result: FsBinaryValue = await diskCache.wrap(cacheKey,
     return {
       binary: {
 // These will be saved to separate files and returned as file paths
-// Check that the keys are suitable as parts of filenames.
         myFile: myFileBuffer,
         someMoreData: moreData,
       },
@@ -103,30 +102,35 @@ options.zip = false;
 ### Examples
 
 ```typescript
-const data = 'string';
 // Input file data can be a Buffer
-await diskCache.set('key1', Buffer.from(data));
+await diskCache.set('key1', Buffer.from('string'));
 // or a plain string
-await diskCache.set('key2', data);
-// or an object with binary as string or Buffer
+await diskCache.set('key2', 'string');
+// or an object with binary as Buffer
 await diskCache.set('key3',
   {
-    binary: Buffer.from(data),
-    // you can add any other meta information
+    binary: Buffer.from('string'),
   }
 );
-
-// or an object with binary as collection of binary data
+// or an object with binary as string
 await diskCache.set('key3',
   {
+    binary: 'string'
+  }
+);
+// or an object with binary as collection of binary data
+await diskCache.set('key5',
+  {
     binary: {
-      file1: Buffer.from(data),
-      file2: data,
+      file1: Buffer.from('string'),
+      file2: 'string',
     },
+    // you can add any other meta information or meta-buffer (any keys allowed)
     meta: {
       size: 100,
       createdAt: new Date(),
-    }
+    },
+    metaBuffer: Buffer.from('string'),
   }
 )
 
