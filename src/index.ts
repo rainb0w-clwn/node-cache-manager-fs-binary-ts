@@ -51,11 +51,9 @@ export type FsBinaryConfig = {
   fillcallback?: (err?: any) => void, //  callback fired after the initial cache filling is completed
 } & Config
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
 export interface FsBinaryStore extends Store {
-  get: (key: string) => Promise<FsBinaryMetaFromFile<string> | undefined>,
-  set: (key: string, data: FsBinaryValue<Buffer | string>, ttl?: number) => Promise<void>
+  get: <T = FsBinaryMetaFromFile<string>>(key: string) => Promise<T | undefined>,
+  set: <T = FsBinaryValue<Buffer | string>>(key: string, data: T, ttl?: number) => Promise<void>
   collection: Record<string, FsBinaryMetaData>,
   currentsize: number,
   options: WithRequired<FsBinaryConfig, 'ttl' | 'path' | 'isCacheable'>,
