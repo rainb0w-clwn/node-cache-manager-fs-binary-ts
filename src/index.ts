@@ -125,7 +125,7 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
 
       const metaData: FsBinaryMetaDataWithValue = {
         key: key,
-        value: data as any,
+        value: data as FsBinaryValue<string>,
         expires: Date.now() + (ttl * 1000),
         filename: filePath,
         size: 0,
@@ -137,7 +137,7 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
       if (typeof data.binary == 'string' || Buffer.isBuffer(data.binary)) {
         binary = Buffer.from(data.binary);
         binarySize += binary.length;
-        metaData.value = {binary: filePath.replace(/\.dat$/, '.bin')};
+        metaData.value.binary = filePath.replace(/\.dat$/, '.bin');
         data.binary = metaData.value.binary;
       } else {
         binary = data.binary;

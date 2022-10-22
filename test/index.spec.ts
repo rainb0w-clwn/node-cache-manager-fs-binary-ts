@@ -236,6 +236,40 @@ describe('test for the hde-disk-store module', function () {
       });
     });
 
+    describe('set additional data',  () => {
+      it('binary plain', (done) => {
+        const s = store({path: cacheDirectory, preventfill: true});
+        const data = 'string';
+        expect(
+          s.set('asdf', {binary: 'string', additional: data})
+            .then(() => {
+              expect(s.get('asdf').then((metaData) => {
+                expect(metaData).not.toBeUndefined();
+                expect(metaData?.additional).toEqual(data);
+                done();
+              })).resolves.not.toThrowError();
+            }),
+        ).resolves.not.toThrowError();
+      });
+
+      it('binary object', (done) => {
+        const s = store({path: cacheDirectory, preventfill: true});
+        const data = 'string';
+        expect(
+          s.set('asdf', {binary: {test: 'string'}, additional: data})
+            .then(() => {
+              expect(s.get('asdf').then((metaData) => {
+                expect(metaData).not.toBeUndefined();
+                expect(metaData?.additional).toEqual(data);
+                done();
+              })).resolves.not.toThrowError();
+            }),
+        ).resolves.not.toThrowError();
+      });
+    });
+
+
+
     it('check value cacheable', async () => {
       const s = store({path: cacheDirectory, preventfill: true});
       await expect(s.set('asdf', null as any)).rejects.toThrowError();
