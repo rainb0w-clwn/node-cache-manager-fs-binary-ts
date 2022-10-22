@@ -129,7 +129,7 @@ describe('test for the hde-disk-store module', function () {
           .then(() => {
             expect(s.get('asdf').then((metaData) => {
               expect(metaData).not.toBeUndefined();
-              const data2 = readFileSync(metaData?.value.binary as string);
+              const data2 = readFileSync(metaData?.binary as string);
               expect(data2.toString()).toEqual(data.toString());
               done();
             })).resolves.not.toThrowError();
@@ -145,7 +145,7 @@ describe('test for the hde-disk-store module', function () {
           .then(() => {
             expect(s.get('asdf').then((metaData) => {
               expect(metaData).not.toBeUndefined();
-              const data2 = readFileSync(metaData?.value.binary as string);
+              const data2 = readFileSync(metaData?.binary as string);
               expect(data2.toString()).toEqual(data.toString());
               done();
             })).resolves.not.toThrowError();
@@ -161,7 +161,7 @@ describe('test for the hde-disk-store module', function () {
           .then(() => {
             expect(s.get('asdf').then((metaData) => {
               expect(metaData).not.toBeUndefined();
-              const data2 = readFileSync((metaData?.value.binary as Record<string, string>).data as string);
+              const data2 = readFileSync((metaData?.binary as Record<string, string>).data as string);
               expect(data2.toString()).toEqual(data.toString());
               done();
             })).resolves.not.toThrowError();
@@ -177,7 +177,7 @@ describe('test for the hde-disk-store module', function () {
           .then(() => {
             expect(s.get('asdf').then((metaData) => {
               expect(metaData).not.toBeUndefined();
-              const data2 = readFileSync((metaData?.value.binary as Record<string, string>).data as string);
+              const data2 = readFileSync((metaData?.binary as Record<string, string>).data as string);
               expect(data2.toString()).toEqual(data.toString());
               done();
             })).resolves.not.toThrowError();
@@ -388,7 +388,7 @@ describe('test for the hde-disk-store module', function () {
             expect(s.get(dataKey).then((metaData) => {
               expect(unzipSpy).toBeCalled();
               expect(metaData).not.toBeUndefined();
-              const data2 = readFileSync(metaData?.value.binary as string);
+              const data2 = readFileSync(metaData?.binary as string);
               expect(data2.toString()).toEqual(datastring);
               done();
             })).resolves.not.toThrowError();
@@ -410,7 +410,7 @@ describe('test for the hde-disk-store module', function () {
               t.get('RestoreTest')
                 .then((metaData) => {
                   expect(metaData).not.toBeUndefined();
-                  const data = readFileSync(metaData?.value.binary as string);
+                  const data = readFileSync(metaData?.binary as string);
                   expect(data.toString()).toEqual('test');
                 })
                 .then(() => t.get('RestoreDontSurvive'))
@@ -438,7 +438,7 @@ describe('test for the hde-disk-store module', function () {
               t.get('RestoreTest')
                 .then((metaData) => {
                   expect(metaData).not.toBeUndefined();
-                  const data = readFileSync(metaData?.value.binary as string);
+                  const data = readFileSync(metaData?.binary as string);
                   expect(data.toString()).toEqual('test');
                 })
                 .then(() => t.get('RestoreDontSurvive'))
@@ -516,7 +516,7 @@ describe('test for the hde-disk-store module', function () {
         s.get('a')
           .then((metaData) => {
             expect(metaData).not.toBeUndefined();
-            const data = readFileSync(metaData?.value.binary as string);
+            const data = readFileSync(metaData?.binary as string);
             expect(data.toString()).toEqual('a');
           })
           .then(() => s.get('b'))

@@ -98,7 +98,7 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
       }
       return readFile(data.filename)
         .then(this.unzipIfNeeded)
-        .then(buffer => JSON.parse(buffer.toString()) as FsBinaryValue<string>);
+        .then(buffer => (JSON.parse(buffer.toString()) as FsBinaryMetaDataWithValue).value);
     },
     async mget(...args) {
       return args.map(x => this.get(x));
