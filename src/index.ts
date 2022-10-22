@@ -217,11 +217,11 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
           }
           return unlink(metaData.filename);
         })
-        .then(() => {
+        .catch()
+        .finally(() => {
           this.currentsize -= metaData.size;
           this.collection[key] = null as any;
           delete this.collection[key];
-          return;
         });
     },
     async ttl(key: string) {

@@ -335,7 +335,7 @@ describe('test for the hde-disk-store module', function () {
               const fn = s.collection['test'].filename;
               s.collection['test'].filename = s.collection['test'].filename + '.not_here';
               expect(s.del('test').finally(() => {
-                s.collection['test'].filename = fn;
+                expect(s.collection['test']).toBeUndefined();
                 done();
               })).rejects.toThrowError();
             }),
