@@ -31,7 +31,7 @@ describe('test for the hde-disk-store module', function () {
     it('simple create cache test', () => {
       // create a store with default values
       const s = store();
-      // remove folder after testrun
+      // remove folder after test run
       // check the creation result
       expect(typeof s).toBe('object');
       expect(typeof s.options).toBe('object');
@@ -217,7 +217,7 @@ describe('test for the hde-disk-store module', function () {
         expect(
           s.set('asdf', data)
             .then(() => {
-              expect(/\_data.bin$/.test(data.binary.data as any)).toBeTruthy();
+              expect(/_data\.bin$/.test(data.binary.data as any)).toBeTruthy();
               done();
             }),
         ).resolves.not.toThrowError();
@@ -229,7 +229,7 @@ describe('test for the hde-disk-store module', function () {
         expect(
           s.set('asdf', data)
             .then(() => {
-              expect(/\_data.bin$/.test(data.binary.data as any)).toBeTruthy();
+              expect(/_data\.bin$/.test(data.binary.data as any)).toBeTruthy();
               done();
             }),
         ).resolves.not.toThrowError();
@@ -334,10 +334,9 @@ describe('test for the hde-disk-store module', function () {
             .then(() => {
               const fn = s.collection['test'].filename;
               s.collection['test'].filename = s.collection['test'].filename + '.not_here';
-              expect(s.del('test').finally(() => {
+              expect(s.del('test').then(() => {
                 expect(s.collection['test']).toBeUndefined();
-                done();
-              })).rejects.toThrowError();
+              }).finally(() => done())).rejects.toThrowError();
             }),
         ).resolves.not.toThrowError();
       });
@@ -531,32 +530,30 @@ describe('test for the hde-disk-store module', function () {
       s.options.maxsize = 400;
 
       await expect(
-        s.set('a', {binary: 'a'}, 10000),
+        s.set('a', {binary: 'ab'}, 10000),
       ).resolves.not.toThrowError();
       expect(Object.keys(s.collection).length).toEqual(1);
 
       await expect(
-        s.set('b', {binary: 'b'}, 100),
+        s.set('b', {binary: 'ab'}, 100),
       ).resolves.not.toThrowError();
       expect(Object.keys(s.collection).length).toEqual(2);
 
       await expect(
-        s.set('c', {binary: 'c'}, 100),
+        s.set('c', {binary: 'ab'}, 100),
       ).resolves.not.toThrowError();
-      expect(Object.keys(s.collection).length).toEqual(2);
-
-
+      expect(Object.keys(s.collection).length).toEqual(1);
+      //first ones will be deleted
       await expect(
-        s.get('a')
+        s.get('c')
           .then((metaData) => {
             expect(metaData).not.toBeUndefined();
             const data = readFileSync(metaData?.binary as string);
-            expect(data.toString()).toEqual('a');
+            expect(data.toString()).toEqual('ab');
           })
           .then(() => s.get('b'))
           .then((metaData) => {
             expect(metaData).toBeUndefined();
-            expect(Object.keys(s.collection).length).toEqual(2);
           }),
       ).resolves.not.toThrowError();
     });

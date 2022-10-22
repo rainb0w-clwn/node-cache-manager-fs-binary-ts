@@ -23,7 +23,7 @@ export type FsBinaryValueObject<T extends BufferString = BufferString> = {
 }
 export type FsBinaryValue<T extends BufferString = BufferString,
   V extends FsBinaryValuePlain<T> | FsBinaryValueObject<T> = FsBinaryValuePlain<T> | FsBinaryValueObject<T>,
-  M extends { [K: string]: any } = { [K: string]: any } > =
+  M extends { [K: string]: any } = { [K: string]: any }> =
   V & M;
 
 export type FsBinaryMetaData = {
@@ -136,7 +136,7 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
 
       if (typeof data.binary == 'string' || Buffer.isBuffer(data.binary)) {
         binary = Buffer.from(data.binary);
-        binarySize += binary.length;
+        binarySize += binary.byteLength;
         metaData.value.binary = filePath.replace(/\.dat$/, '.bin');
         data.binary = metaData.value.binary;
       } else {
@@ -149,7 +149,7 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
           (metaData.value.binary as any)[binkey] = path;
           (data.binary as any)[binkey] = path;
           // calculate the size of the binary data
-          binarySize += binary[binkey].length;
+          binarySize += Buffer.from(binary[binkey]).byteLength;
         }
       }
 
@@ -207,21 +207,22 @@ export function fsBinaryStore(args?: FsBinaryConfig): FsBinaryStore {
             throw new Error('Parsing meta error');
           }
 
-          if (!(typeof metaData.value.binary == 'string')) {
-            // unlink binaries
-            for (key of Object.keys(metaData.value.binary)) {
-              await unlink(metaData.value.binary[key]);
+          try {
+            if (!(typeof metaData.value.binary == 'string')) {
+              // unlink binaries
+              for (key of Object.keys(metaData.value.binary)) {
+                await unlink(metaData.value.binary[key]);
+              }
+            } else {
+              await unlink(metaData.value.binary);
             }
-          } else {
-            await unlink(metaData.value.binary);
+            await unlink(metaData.filename);
+          } catch {
           }
-          return unlink(metaData.filename);
-        })
-        .catch()
-        .finally(() => {
           this.currentsize -= metaData.size;
           this.collection[key] = null as any;
           delete this.collection[key];
+          return;
         });
     },
     async ttl(key: string) {
