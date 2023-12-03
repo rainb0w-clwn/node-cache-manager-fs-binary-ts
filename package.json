@@ -36,10 +36,10 @@
     "fast-glob": "^3.2.12"
   },
   "devDependencies": {
-    "@babel/core": "7.22.9",
+    "@babel/core": "7.23.5",
     "@babel/plugin-proposal-optional-chaining": "7.21.0",
-    "@babel/preset-env": "7.22.9",
-    "@babel/preset-typescript": "7.22.5",
+    "@babel/preset-env": "7.23.5",
+    "@babel/preset-typescript": "7.23.3",
     "@types/jest": "29.5.10",
     "@types/node": "18.16.19",
     "@typescript-eslint/eslint-plugin": "5.62.0",
